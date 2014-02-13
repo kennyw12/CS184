@@ -52,15 +52,11 @@ struct Color {
 struct Vector {
   float x, y, z;
   float mag;
-  Vector* unit;
   Vector(float x1, float y1, float z1) {
     x = x1;
     y = y1;
     z = z1;
     mag = pow(sqr(x1) + sqr(y1) + sqr(z1), 0.5);
-    if (mag != 1) {
-      unit = new Vector(x1/mag, y1/mag, z1/mag);
-    }
   }
 };
 
@@ -83,11 +79,12 @@ int pointLights = 0;
 Light* pLights[5];
 int directionalLights = 0;
 Light* dLights[5];
-Color* ka;
-Color* kd;
-Color* ks;
+Color* ka = new Color();
+Color* kd = new Color();
+Color* ks = new Color();
 Vector* viewer = new Vector(0,0,1);
 int id;
+float zero = 0.0;
 
 
 //****************************************************
@@ -150,6 +147,10 @@ Vector* reflect(Vector l, Vector n) {
   return add(*scale(*scale(n, dot), 2), *scale(l, -1));
 }
 
+Vector* normalize(Vector v) {
+  return new Vector(v.x/v.mag, v.y/v.mag, v.z/v.mag);
+}
+
 //****************************************************
 // Draw a filled circle.  
 //****************************************************
@@ -194,30 +195,26 @@ void circle(float centerX, float centerY, float radius) {
 
         for (int pl=0;pl<pointLights;pl++) {
           Light* light = pLights[pl];
-          Vector* ltos = subtract(*light->pos, *surface);
-          float intensity = ltos->mag;
-          Vector* reflection = reflect(*ltos, *surface);
-          r = r + ka->r * intensity + kd->r * intensity * dotProduct(*ltos->unit, *surface->unit)
-              + ks->r * intensity * pow(dotProduct(*viewer, *reflection->unit), p);
-          g = g + ka->g * intensity + kd->g * intensity * dotProduct(*ltos->unit, *surface->unit)
-              + ks->g * intensity * pow(dotProduct(*viewer, *reflection->unit), p);
-          b = b + ka->b * intensity + kd->b * intensity * dotProduct(*ltos->unit, *surface->unit)
-              + ks->b * intensity * pow(dotProduct(*viewer, *reflection->unit), p);
+          Vector* ltos = subtract(*scale(*light->pos, radius), *surface);
+          Vector* reflection = reflect(*normalize(*ltos), *normalize(*surface));
+          float diff = dotProduct(*normalize(*ltos), *normalize(*surface));
+          float spec = pow(max(dotProduct(*viewer, *normalize(*reflection)), zero), p);
+          r = r + ka->r * light->color->r + max(kd->r * light->color->r * diff, zero) + ks->r * light->color->r * spec;
+          g = g + ka->g * light->color->g + max(kd->g * light->color->g * diff, zero) + ks->g * light->color->g * spec;
+          b = b + ka->b * light->color->b + max(kd->b * light->color->b * diff, zero) + ks->b * light->color->b * spec;
         }
         for (int dl=0;dl<directionalLights;dl++) {
           Light* light = dLights[dl];
-          Vector* negLight = scale(*light->pos, -1);
-          float intensity = light->pos->mag;
-          Vector* reflection = reflect(*negLight, *surface);
-          r = r + ka->r * intensity + kd->r * intensity * dotProduct(*negLight->unit, *surface->unit)
-              + ks->r * intensity * pow(dotProduct(*viewer, *reflection->unit), p);
-          g = g + ka->g * intensity + kd->g * intensity * dotProduct(*negLight->unit, *surface->unit)
-              + ks->g * intensity * pow(dotProduct(*viewer, *reflection->unit), p);
-          b = b + ka->b * intensity + kd->b * intensity * dotProduct(*negLight->unit, *surface->unit)
-              + ks->b * intensity * pow(dotProduct(*viewer, *reflection->unit), p);
+          Vector* negLight = scale(*light->pos, -1 * radius);
+          Vector* reflection = reflect(*normalize(*negLight), *normalize(*surface));
+          float diff = dotProduct(*normalize(*negLight), *normalize(*surface));
+          float spec = pow(max(dotProduct(*viewer, *normalize(*reflection)), zero), p);
+          r = r + ka->r * light->color->r + max(kd->r * light->color->r * diff, zero) + ks->r * light->color->r * spec;
+          g = g + ka->g * light->color->g + max(kd->g * light->color->g * diff, zero) + ks->g * light->color->g * spec;
+          b = b + ka->b * light->color->b + max(kd->b * light->color->b * diff, zero) + ks->b * light->color->b * spec;
         }
+        //printf("%f, %f, %f", r, g, b);
         setPixel(i,j, r, g, b);
-
         // This is amusing, but it assumes negative color values are treated reasonably.
         // setPixel(i,j, x/radius, y/radius, z/radius );
       }
@@ -278,15 +275,15 @@ int main(int argc, char *argv[]) {
       ka = new Color(atof(argv[i+1]), atof(argv[i+2]), atof(argv[i+3]));
       i += 4;
     }
-    if (!(strcmp(argv[i],"-ks"))) {
+    else if (!(strcmp(argv[i],"-ks"))) {
       ks = new Color(atof(argv[i+1]), atof(argv[i+2]), atof(argv[i+3]));
       i += 4;
     }
-    if (!(strcmp(argv[i],"-kd"))) {
+    else if (!(strcmp(argv[i],"-kd"))) {
       kd = new Color(atof(argv[i+1]), atof(argv[i+2]), atof(argv[i+3]));
       i += 4;
     }
-    if (!(strcmp(argv[i],"-pl"))) {
+    else if (!(strcmp(argv[i],"-pl"))) {
       if (pointLights < 5) {
         pLights[pointLights] = new Light(atof(argv[i+1]), atof(argv[i+2]), atof(argv[i+3]),
                                           atof(argv[i+4]), atof(argv[i+5]), atof(argv[i+6]));
@@ -294,7 +291,7 @@ int main(int argc, char *argv[]) {
         i += 7;
       }
     }
-    if (!(strcmp(argv[i],"-dl"))) {
+    else if (!(strcmp(argv[i],"-dl"))) {
       if (directionalLights < 5) {
         dLights[directionalLights] = new Light(atof(argv[i+1]), atof(argv[i+2]), atof(argv[i+3]),
                                           atof(argv[i+4]), atof(argv[i+5]), atof(argv[i+6]));
@@ -302,7 +299,7 @@ int main(int argc, char *argv[]) {
         i += 7;
       }
     }
-    if (!(strcmp(argv[i],"-sp"))){
+    else if (!(strcmp(argv[i],"-sp"))){
       p = atof(argv[i+1]);
       i += 2;
     }
