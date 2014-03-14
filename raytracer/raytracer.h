@@ -1,7 +1,7 @@
 class vector {
 		int x, y, z;
 		float magnitude;
-	public:
+	public
 		vector(int ix, int iy, int iz);
 };
 
@@ -15,13 +15,13 @@ class scene {
 	int width, height, depth;
 	vector eye, lower_left, lower_right, upper_left, upper_right;
 public:
-	scene(vector ieye, vector ll, vector lr, vector ul, vector ur, int w, int h);
+	scene(int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int);
 };
 
 class sampler {
 	scene my_scene;
 public:
-	sampler(scene s1);
+	sampler(int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int);
 	rgb generate_sample(vector ray);
 };
 
@@ -31,7 +31,7 @@ class film {
 	rgb* samples;
 	const int max_color_value = 255;
 public:
-	film(scene s1, sampler sample);
+	film(int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int);
 	void sample();
 	void write_to_file();
 };

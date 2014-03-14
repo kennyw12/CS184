@@ -1,13 +1,13 @@
 CC = g++
-CFLAGS = -g
-LDFLAGS = -lglut -lGLU
-
 	
 RM = /bin/rm -f 
 all: main 
 main: raytracer.o 
-	$(CC) $(CFLAGS) -o as2 raytracer.o $(LDFLAGS) 
+	$(CC) -o raytracer raytracer.o -lpng
 raytracer.o: raytracer.cpp
-	$(CC) $(CFLAGS) -c raytracer.cpp -o raytracer.o
+	$(CC) -c raytracer.cpp -o raytracer.o
 clean: 
-	$(RM) *.o as2
+	$(RM) *.o raytracer
+ 
+
+
