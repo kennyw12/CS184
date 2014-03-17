@@ -1,10 +1,12 @@
 #include <vector>
+#include <map>
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <cfloat>
 
 #include <time.h>
 #include <math.h>
@@ -126,6 +128,10 @@ Point* scalez(Point* a, int b) {
   return new Point(a->x, a->y, a->z * b);
 }
 
+Vector* scalez(Vector* a, int b) {
+  return new Vector(a->x, a->y, a->z * b);
+}
+
 Point* scale(Point* a, float b) {
   return new Point(a->x * b, a->y * b, a->z * b);
 }
@@ -156,7 +162,7 @@ struct Light {
     Point* pos;
     Color* color;
     Light(Point* p, Color* c) {
-        pos = new Point(p->x*width/2, p->y*height/2, p->z*depth);
+        pos = new Point(p->x*width/2, p->y*height/2, p->z*depth/3);
         color = c;
     }
 };
@@ -173,6 +179,7 @@ class Shape {
         Color* kr;
         int p;
         int sid;
+        int radius;
         void set_center(float a, float b, float c) {
             center = new Point(a, b, c);
         }
@@ -189,42 +196,7 @@ class Shape {
         void set_kr(Color* c) {
             kr = c;
         }
-        Color* get_my_color(Point* intersect, Light* light, Vector* ltos) {
-            Vector* normal = normalize(new Vector(intersect));
-            Vector* view = new Vector(0,0,1);
-            Vector* reflection = reflect(normalize(ltos), normal);
-            float diff = max(dotProduct(normalize(ltos), normal), zero);
-            float spec = pow(max(dotProduct(view, normalize(reflection)), zero), p);
-            //printf("%f, %f %f pl\n", diff, spec, stuff);
-            float r = r + ka->r*light->color->r + kd->r*light->color->r*diff + ks->r*light->color->r*spec;
-            float g = g + ka->g*light->color->g + kd->g*light->color->g*diff + ks->g*light->color->g*spec;
-            float b = b + ka->b*light->color->b + kd->b*light->color->b*diff + ks->b*light->color->b*spec;
-            return new Color(r,g,b);
-        }
-        Vector* generate_shadowRay(Point* worldIntersect, Vector* ltos) {
-            return new Ray(worldIntersect, normalize(ltos));
-        }
-};
-
-
-
-class Sphere: public Shape {
-    public:
-        float radius;
-        Sphere(float x1, float y1, float z1, float r, Color* ka, Color* kd, Color* ks, int p, Color* kr, int sid1) {
-            //printf("Set Radius %d\n", r);
-            set_center(x1 * width/2 * -1, y1 * height/2 * -1, z1 * depth);
-            printf("%f %f %f\n", center->x, center->y, center->z);
-            radius = r * ((float)min(width, height)) * 0.5;
-            printf("%f\n", radius);
-            set_kd(kd);
-            set_ks(ks, p);
-            set_ka(ka);
-            set_kr(kr);
-            sid = sid1;
-        }
-        float get_radius() {
-            //printf("Getting Radius\n");
+        int get_radius() {
             return radius;
         }
 };
@@ -233,15 +205,15 @@ class Triangle: public Shape {
     public:
         Point* vertices[3];
         Vector* normal;
-        Point* avg;
         Triangle(Point* p1, Point* p2, Point* p3, Color* ka, Color* kd, Color* ks, int p, Color* kr, int sid1) {
-            vertices[0] = new Point(p1->x * width/2, p1->y * height/2, p1->z * depth);
-            vertices[1] = new Point(p2->x * width/2, p2->y * height/2, p2->z * depth);
-            vertices[2] = new Point(p3->x * width/2, p3->y * height/2, p3->z * depth);
-            printf("%f %f %f\n", vertices[0]->x, vertices[0]->y, vertices[0]->z);
-            printf("%f %f %f\n", vertices[1]->x, vertices[1]->y, vertices[1]->z);
-            printf("%f %f %f\n", vertices[2]->x, vertices[2]->y, vertices[2]->z);
-            avg = new Point((p1->x+p2->x+p3->x)*width/6,(p1->y+p2->y+p3->y)*height/6,(p1->z+p2->z+p3->z)*depth/3);
+            vertices[0] = new Point(p1->x * width/2 * -1, p1->y * height/2 * -1, p1->z * depth/3);
+            vertices[1] = new Point(p2->x * width/2 * -1, p2->y * height/2 * -1, p2->z * depth/3);
+            vertices[2] = new Point(p3->x * width/2 * -1, p3->y * height/2 * -1, p3->z * depth/3);
+            //printf("%f %f %f\n", vertices[0]->x, vertices[0]->y, vertices[0]->z);
+            //printf("%f %f %f\n", vertices[1]->x, vertices[1]->y, vertices[1]->z);
+            //printf("%f %f %f\n", vertices[2]->x, vertices[2]->y, vertices[2]->z);
+            set_center((p1->x+p2->x+p3->x)*width/6,(p1->y+p2->y+p3->y)*height/6,(p1->z+p2->z+p3->z)*depth/3);
+            radius = ((float)min(width, height)) * 0.5;
             Vector* v1 = new Vector(p2, p1);
             Vector* v2 = new Vector(p3, p1);
             normal = normalize(crossProduct(v1, v2));
@@ -253,6 +225,61 @@ class Triangle: public Shape {
         }
 };
 
+class Sphere: public Shape {
+    public:
+        float radius;
+        Sphere(float x1, float y1, float z1, float r, Color* ka, Color* kd, Color* ks, int p, Color* kr, int sid1) {
+            //printf("Set Radius %d\n", r);
+            set_center(x1 * width/2 * -1, y1 * height/2 * -1, z1 * depth/3);
+            printf("%f %f %f\n", center->x, center->y, center->z);
+            radius = r * ((float)min(width, height)) * 0.5;
+            //printf("%f\n", radius);
+            set_kd(kd);
+            set_ks(ks, p);
+            set_ka(ka);
+            set_kr(kr);
+            sid = sid1;
+        }
+};
+
+float time_to_sphere(Ray* ray, Sphere* s) {
+    Ray* tray = new Ray(add(ray->origin, s->center), ray->direction);
+    //printf("a\n");
+    float a = dotProduct(tray->direction, tray->direction);
+    //printf("b\n");
+    float b = 2 * dotProduct(tray->direction, tray->origin);
+    //printf("c\n");
+    float c = dotProduct(tray->origin, tray->origin) - (s->radius * s->radius);
+
+    float det = b * b - 4 * a * c;
+    //printf("det, %f\n", det);
+    if (det<0) {
+        return det; //Misses sphere
+    } else {
+        float t = min((-b-pow(det,0.5))/(2*a), (-b+pow(det,0.5))/(2*a));
+        return t;
+    }
+}
+float time_to_triangle(Ray* ray, Triangle* t) {
+    Vector* e1 = new Vector(subtract(t->vertices[1], t->vertices[0]));
+    Vector* e2 = new Vector(subtract(t->vertices[2], t->vertices[0]));
+    Vector* cross = crossProduct(ray->direction, e2);
+    float det = dotProduct(cross, e1);
+    if ((det > -0.00001) && (det < 0.00001)) {
+        return 0.0; //no intersection
+    }
+    Vector* toOrigin = new Vector(subtract(ray->origin, t->vertices[0]));
+    float u = dotProduct(toOrigin, cross) / det;
+    if ((u < 0.0) || (u > 1.0)) {
+        return 0.0; //outside the triangle
+    }
+    Vector* cross1 = crossProduct(toOrigin, e1);
+    float v = dotProduct(ray->direction, cross1) / det;
+    if ((v < 0.0) || (v + u > 1.0)) {
+        return 0.0; //outside the triangle
+    }
+    return dotProduct(e2, cross1) / det;
+}
 
 struct Scene
 {
@@ -267,6 +294,7 @@ struct Scene
     float* zBuff;
     std::vector<Sphere*> spheres;
     std::vector<Triangle*> triangles;
+    std::map<int, int> map;
     Scene(Point* ll1, Point* lr1, Point* ul1, Point* ur1, Point* eye1, int w, int h) {
         width = w;
         height = h;
@@ -284,293 +312,200 @@ struct Scene
     }
     void add_sphere(Sphere* s) {
         spheres.push_back(s);
+        map[s->sid] = 1;
     }
     void add_tri(Triangle* t) {
         triangles.push_back(t);
+        map[t->sid] = 0;
     }
-    float time_to_sphere(Ray* ray, Sphere* s) {
-        Ray* tray = new Ray(add(ray->origin, s->center), ray->direction);
-        float a = dotProduct(tray->direction, tray->direction);
-        float b = 2 * dotProduct(tray->direction, tray->origin);
-        float c = dotProduct(tray->origin, tray->origin) - (s->radius * s->radius);
-
-        float det = b * b - 4 * a * c;
-        //printf("%f\n", det);
-        if (det<0) {
-            return det;
-        } else {
-            return min((-b-pow(det,0.5))/(2*a), (-b+pow(det,0.5))/(2*a));
-        }
-    }
-    float time_to_triangle(Ray* ray, Triangle* t) {
-        Vector* e1 = new Vector(subtract(t->vertices[1], t->vertices[0]));
-        Vector* e2 = new Vector(subtract(t->vertices[2], t->vertices[0]));
-        Vector* cross = crossProduct(ray->direction, e2);
-        float det = dotProduct(cross, e1);
-        if ((det > -0.00001) && (det < 0.00001)) {
-            return 0; //no intersection
-        }
-        Vector* toOrigin = new Vector(subtract(ray->origin, t->vertices[0]));
-        float u = dotProduct(toOrigin, cross) / det;
-        if ((u < 0.0) || (u > 1.0)) {
-            return 0; //outside the triangle
-        }
-        Vector* cross1 = crossProduct(toOrigin, e1);
-        float v = dotProduct(ray->direction, cross1) / det;
-        if ((v < 0.0) || (v + u > 1.0)) {
-            return 0; //outside the triangle
-        }
-        return dotProduct(e2, cross1) / det;
-    }
-    Sphere* blocked_sphere(Ray* ray, int sid) {
+    bool blocked(Ray* ray, int sid, Shape** blocker) {
         int i;
-        Sphere* nearest_block = NULL;
-        float t;
+        float bt = FLT_MAX;
         for (i=0;i<spheres.size();i++) {
+            //printf("spheres\n");
             Sphere* s = spheres.at(i);
             if (s->sid != sid) {
-                float t1 = time_to_sphere(ray, s);
-                //printf("%f\n", t);
-                if (t1 > 1.0) {
-                    if ((nearest_block == NULL) || (t1 < t)) {
-                        t = t1;
-                        nearest_block = s;
+                float t = time_to_sphere(ray, s);
+                //printf("%f %d %d\n", t, sid, s->sid);
+                if (t > 0.0001) {
+                    if (t < bt) {
+                        //printf("small\n");
+                        bt = t;
+                        //printf("%f, %f \n", bt, FLT_MAX);
+                        *blocker = s;
                     }
                 }
             }
         }
-        return nearest_block;
-    }
-    Triangle* blocked_triangle(Ray* ray, int sid) {
-        int i;
-        Triangle* nearest_block = NULL;
-        float t2;
         for (i=0;i<triangles.size();i++) {
-            Triangle* t = triangles.at(i);
-            if (t->sid != sid) {
-                float t1 = time_to_triangle(ray, t);
-                if (t1 > 0.00001) {
-                    if ((nearest_block == NULL) || (t1 < t2)) {
-                        t2 = t1;
-                        nearest_block = t;
+            //printf("tri\n");
+            Triangle* t1 = triangles.at(i);
+            if (t1->sid != sid) {
+                float t = time_to_triangle(ray, t1);
+                //printf("%f\n", t);
+                if (t > 0.0001) {
+                    if (t < bt) {
+                        bt = t;
+                        *blocker = t1;
                     }
                 }
             }
         }
-        return nearest_block;
+        //printf("done\n");
+        if ((*blocker) != NULL) {
+            //printf("hit\n");
+            //printf("%d\n", (*blocker)->sid);
+            return true;
+        }
+        return false;
     }
 };
 
-Color* get_color_sphere(Ray* ray, Sphere* s, Scene* my_scene, int index, int ttl) {
-    if (ttl == 0) {
-        return new Color(0,0,0);
-    }
-    float t = my_scene->time_to_sphere(ray, s);
-    if (t<=0) {
-        return new Color(0,0,0); //Misses sphere
-    } else {
-        Point* worldIntersect = ray_endpoint(ray, t);
-        Point* intersect = scalez(worldIntersect, -1);
-        //printf("%f, %f %f wi\n", worldIntersect->x, worldIntersect->y, worldIntersect->z);
-        if ((my_scene->zBuff[index] == 0) || (my_scene->zBuff[index] < intersect->z)) {
-            my_scene->zBuff[index] = intersect->z;
-            //printf("%f t\n", t);
-            //printf("%f, %f %f intersect\n", intersect->x, intersect->y, intersect->z);
-            float r=0.0;
-            float g=0.0;
-            float b=0.0;
-            int i;
-            for(i=0;i<plights.size();i++) {
-                Vector* ltos = new Vector(light->pos, intersect);
-                Color* c = s->get_my_color(intersect, plights.at(i), ltos);
-                Vector* shadowRay = generate_shadowRay(worldIntersect, ltos);
-                Sphere* next_s = my_scene->blocked_sphere(shadowRay, s->sid);
-                Triangle* next_t = my_scene->blocked_triangle(shadowRay, s->sid);
-                if (next_s == NULL) {
-                    if (next_t == NULL) {
-                        r+=c->r;
-                        g+=c->g;
-                        b+=c->b;
-                    } else {
-                        Color* c1 = get_color_triangle(shadowRay, next_t, my_scene, index, ttl);
-                        r+=next_t->kr*c1->r;
-                        g+=next_t->kr*c1->g;
-                        b+=next_t->kr*c1->b;
-                    }
-                } else {
-                    if (next_t == NULL) {
-                        Color* c1 = get_color_sphere(shadowRay, next_s, my_scene, index, ttl);
-                        r+=next_s->kr*c1->r;
-                        g+=next_s->kr*c1->g;
-                        b+=next_s->kr*c1->b;
-                    } else {
-                        float ts = my_scene->time_to_sphere(shadowRay, next_s);
-                        float tt = my_scene->time_to_triangle(shadowRay, next_t);
-                        if (ts < tt) {
-                            Color* c1 = get_color_sphere(shadowRay, next_s, my_scene, index, ttl);
-                            r+=next_s->kr*c1->r;
-                            g+=next_s->kr*c1->g;
-                            b+=next_s->kr*c1->b;
+Color* get_color(Ray* ray, Scene* my_scene, int index, int ttl) {
+    float r = 0.0;
+    float g = 0.0;
+    float b = 0.0;
+    if (ttl > 0) {
+        Shape* s1 = NULL;
+        //printf("test\n");
+        if (my_scene->blocked(ray, 0, &s1)) {
+            //printf("hit\n");
+            if (my_scene->map[s1->sid] == 1) {
+                Sphere* s = (Sphere*) s1;
+                float t = time_to_sphere(ray, s);
+                if (t>0) {
+                    Point* worldIntersect = make_point(scale(ray->direction, t), ray->origin);
+                    Point* intersect = normalize(scalez(add(worldIntersect, s->center), -1));
+                    Vector* normal = normalize(new Vector(intersect));
+                    Vector* view = new Vector(0,0,1);
+                    int i;
+                    for(i=0;i<plights.size();i++) {
+                        Light* light = plights.at(i);
+                        Vector* ltos = normalize(new Vector(scale(light->pos, s->radius), intersect));
+                        Ray* shadowRay = new Ray(worldIntersect, normalize(new Vector(scale(light->pos, s->radius), worldIntersect)));
+                        Shape* blocker = NULL;
+                        if (!my_scene->blocked(shadowRay, s->sid, &blocker)) {
+                            Vector* reflection = reflect(normalize(ltos), normal);
+                            float diff = max(dotProduct(normalize(ltos), normal), zero);
+                            float spec = pow(max(dotProduct(view, normalize(reflection)), zero), s->p);
+                            Ray* reflect = new Ray(worldIntersect, normalize(reflection));
+                            Shape* reflecter = NULL;
+                            if (my_scene->blocked(reflect, s->sid, &reflecter)) {
+                                Color* c = get_color(reflect, my_scene, index, ttl-1);
+                                r = r + s->kr->r*c->r;
+                                g = g + s->kr->g*c->g;
+                                b = b + s->kr->b*c->b;
+                            }
+                            r = r + s->ka->r*light->color->r + s->kd->r*light->color->r*diff + s->ks->r*light->color->r*spec;
+                            g = g + s->ka->g*light->color->g + s->kd->g*light->color->g*diff + s->ks->g*light->color->g*spec;
+                            b = b + s->ka->b*light->color->b + s->kd->b*light->color->b*diff + s->ks->b*light->color->b*spec;
                         } else {
-                            Color* c1 = get_color_triangle(shadowRay, next_t, my_scene, index, ttl);
-                            r+=next_t->kr*c1->r;
-                            g+=next_t->kr*c1->g;
-                            b+=next_t->kr*c1->b;
+                            //printf("blocked\n");
+                            r = r + s->ka->r*light->color->r;
+                            g = g + s->ka->g*light->color->g;
+                            b = b + s->ka->b*light->color->b;
                         }
                     }
-                }
+                    for(i=0;i<dlights.size();i++) {
+                        Light* light = dlights.at(i);
+                        Vector* negLight = new Vector(scale(light->pos, -1));
+                        Ray* shadowRay = new Ray(worldIntersect, normalize(new Vector(scale(light->pos, -1), worldIntersect)));
+                        //printf("%f %f %f\n", negLight->x, negLight->y, negLight->z);
+                        //printf("%f %f %f\n", shadowRay->direction->x, shadowRay->direction->y, shadowRay->direction->z);
+                        Shape* blocker = NULL;
+                        if (!my_scene->blocked(shadowRay, s->sid, &blocker)) {
+                            Vector* reflection = reflect(normalize(negLight), normal);
+                            float diff = max(dotProduct(normalize(negLight), normal), zero);
+                            float spec = pow(max(dotProduct(view, normalize(reflection)), zero), s->p);
+                            Ray* reflect = new Ray(worldIntersect, normalize(reflection));
+                            Shape* reflecter = NULL;
+                            if (my_scene->blocked(reflect, s->sid, &reflecter)) {
+                                Color* c = get_color(reflect, my_scene, index, ttl-1);
+                                r = r + s->kr->r*c->r;
+                                g = g + s->kr->g*c->g;
+                                b = b + s->kr->b*c->b;
+                            }
+                            r = r + s->ka->r*light->color->r + s->kd->r*light->color->r*diff + s->ks->r*light->color->r*spec;
+                            g = g + s->ka->g*light->color->g + s->kd->g*light->color->g*diff + s->ks->g*light->color->g*spec;
+                            b = b + s->ka->b*light->color->b + s->kd->b*light->color->b*diff + s->ks->b*light->color->b*spec;
+                        } else {
+                            //printf("blocked\n");
+                            r = r + s->ka->r*light->color->r;
+                            g = g + s->ka->g*light->color->g;
+                            b = b + s->ka->b*light->color->b;
+                        }
 
-            }
-            for(i=0;i<dlights.size();i++) {
-                Vector* ltos = new Vector(scale(light->pos, -1));
-                Color* c = s->get_my_color(intersect, dlights.at(i), ltos);
-                Vector* shadowRay = generate_shadowRay(worldIntersect, ltos);
-                Sphere* next_s = my_scene->blocked_sphere(shadowRay, s->sid);
-                Triangle* next_t = my_scene->blocked_triangle(shadowRay, s->sid);
-                if (next_s == NULL) {
-                    if (next_t == NULL) {
-                        r+=c->r;
-                        g+=c->g;
-                        b+=c->b;
-                    } else {
-                        Color* c1 = get_color(shadowRay, next_t, my_scene, index, ttl);
-                        r+=next_t->kr*c1->r;
-                        g+=next_t->kr*c1->g;
-                        b+=next_t->kr*c1->b;
                     }
-                } else {
-                    if (next_t == NULL) {
-                        Color* c1 = get_color(shadowRay, next_s, my_scene, index, ttl);
-                        r+=next_s->kr*c1->r;
-                        g+=next_s->kr*c1->g;
-                        b+=next_s->kr*c1->b;
-                    } else {
-                        float ts = my_scene->time_to_sphere(shadowRay, next_s);
-                        float tt = my_scene->time_to_triangle(shadowRay, next_t);
-                        if (ts < tt) {
-                            Color* c1 = get_color(shadowRay, next_s, my_scene, index, ttl);
-                            r+=next_s->kr*c1->r;
-                            g+=next_s->kr*c1->g;
-                            b+=next_s->kr*c1->b;
+                }
+            } else {
+                Triangle* s = (Triangle*) s1;
+                float t = time_to_triangle(ray, s);
+                if (t>0.0) {
+                    Point* worldIntersect = make_point(scale(ray->direction, t), ray->origin);
+                    Point* intersect = scalez(add(worldIntersect, s->center), -1);
+                    Vector* normal = normalize(new Vector(intersect));
+                    Vector* view = new Vector(0,0,1);
+                    int i;
+                    for(i=0;i<plights.size();i++) {
+                        Light* light = plights.at(i);
+                        Vector* ltos = normalize(new Vector(scale(light->pos, s->radius), intersect));
+                        Ray* shadowRay = new Ray(worldIntersect, normalize(new Vector(scale(light->pos, s->radius), worldIntersect)));
+                        Shape* blocker = NULL;
+                        if (!my_scene->blocked(shadowRay, s->sid, &blocker)) {
+                            Vector* reflection = reflect(normalize(ltos), normal);
+                            float diff = max(dotProduct(normalize(ltos), normal), zero);
+                            float spec = pow(max(dotProduct(view, normalize(reflection)), zero), s->p);
+                            Ray* reflect = new Ray(worldIntersect, normalize(reflection));
+                            Shape* reflecter = NULL;
+                            if (my_scene->blocked(reflect, s->sid, &reflecter)) {
+                                Color* c = get_color(reflect, my_scene, index, ttl-1);
+                                r = r + s->kr->r*c->r;
+                                g = g + s->kr->g*c->g;
+                                b = b + s->kr->b*c->b;
+                            }
+                            r = r + s->ka->r*light->color->r + s->kd->r*light->color->r*diff + s->ks->r*light->color->r*spec;
+                            g = g + s->ka->g*light->color->g + s->kd->g*light->color->g*diff + s->ks->g*light->color->g*spec;
+                            b = b + s->ka->b*light->color->b + s->kd->b*light->color->b*diff + s->ks->b*light->color->b*spec;
                         } else {
-                            Color* c1 = get_color(shadowRay, next_t, my_scene, index, ttl);
-                            r+=next_t->kr*c1->r;
-                            g+=next_t->kr*c1->g;
-                            b+=next_t->kr*c1->b;
+                            //printf("blocked\n");
+                            r = r + s->ka->r*light->color->r;
+                            g = g + s->ka->g*light->color->g;
+                            b = b + s->ka->b*light->color->b;
                         }
+                    }
+                    for(i=0;i<dlights.size();i++) {
+                        Light* light = dlights.at(i);
+                        Vector* negLight = new Vector(scale(light->pos, -1 * s->radius));
+                        Ray* shadowRay = new Ray(worldIntersect, normalize(new Vector(scale(light->pos, -1*s->radius), worldIntersect)));
+                        Shape* blocker = NULL;
+                        if (!my_scene->blocked(new Ray(worldIntersect, normalize(negLight)), s->sid, &blocker)) {
+                            Vector* reflection = reflect(normalize(negLight), normal);
+                            float diff = max(dotProduct(normalize(negLight), normal), zero);
+                            float spec = pow(max(dotProduct(view, normalize(reflection)), zero), s->p);
+                            Ray* reflect = new Ray(worldIntersect, normalize(reflection));
+                            Shape* reflecter = NULL;
+                            if (my_scene->blocked(reflect, s->sid, &reflecter)) {
+                                Color* c = get_color(reflect, my_scene, index, ttl-1);
+                                r = r + s->kr->r*c->r;
+                                g = g + s->kr->g*c->g;
+                                b = b + s->kr->b*c->b;
+                            }
+                            r = r + s->ka->r*light->color->r + s->kd->r*light->color->r*diff + s->ks->r*light->color->r*spec;
+                            g = g + s->ka->g*light->color->g + s->kd->g*light->color->g*diff + s->ks->g*light->color->g*spec;
+                            b = b + s->ka->b*light->color->b + s->kd->b*light->color->b*diff + s->ks->b*light->color->b*spec;
+                        } else {
+                            //printf("blocked\n");
+                            r = r + s->ka->r*light->color->r;
+                            g = g + s->ka->g*light->color->g;
+                            b = b + s->ka->b*light->color->b;
+                        }
+
                     }
                 }
             }
-            return new Color(r, g, b);
         }
-        return new Color(0,0,0);
     }
-}
-
-Color* get_color_triangle(Ray* ray, Triangle* s, Scene* my_scene, int index, int ttl) {
-    if (ttl == 0) {
-        return new Color(0,0,0);
-    }
-    float t = my_scene->time_to_triangle(ray, s);
-    if (t<=0) {
-        return new Color(0,0,0); //Misses sphere
-    } else {
-        Point* worldIntersect = ray_endpoint(ray, t);
-        Point* intersect = scalez(worldIntersect, -1);
-        //printf("%f, %f %f wi\n", worldIntersect->x, worldIntersect->y, worldIntersect->z);
-        if ((my_scene->zBuff[index] == 0) || (my_scene->zBuff[index] < intersect->z)) {
-            my_scene->zBuff[index] = intersect->z;
-            //printf("%f t\n", t);
-            //printf("%f, %f %f intersect\n", intersect->x, intersect->y, intersect->z);
-            float r=0.0;
-            float g=0.0;
-            float b=0.0;
-            int i;
-            for(i=0;i<plights.size();i++) {
-                Vector* ltos = new Vector(light->pos, intersect);
-                Color* c = s->get_my_color(intersect, plights.at(i), ltos);
-                Vector* shadowRay = generate_shadowRay(worldIntersect, ltos);
-                Sphere* next_s = my_scene->blocked_sphere(shadowRay, s->sid);
-                Triangle* next_t = my_scene->blocked_triangle(shadowRay, s->sid);
-                if (next_s == NULL) {
-                    if (next_t == NULL) {
-                        r+=c->r;
-                        g+=c->g;
-                        b+=c->b;
-                    } else {
-                        Color* c1 = get_color_triangle(shadowRay, next_t, my_scene, index, ttl);
-                        r+=next_t->kr*c1->r;
-                        g+=next_t->kr*c1->g;
-                        b+=next_t->kr*c1->b;
-                    }
-                } else {
-                    if (next_t == NULL) {
-                        Color* c1 = get_color_sphere(shadowRay, next_s, my_scene, index, ttl);
-                        r+=next_s->kr*c1->r;
-                        g+=next_s->kr*c1->g;
-                        b+=next_s->kr*c1->b;
-                    } else {
-                        float ts = my_scene->time_to_sphere(shadowRay, next_s);
-                        float tt = my_scene->time_to_triangle(shadowRay, next_t);
-                        if (ts < tt) {
-                            Color* c1 = get_color_sphere(shadowRay, next_s, my_scene, index, ttl);
-                            r+=next_s->kr*c1->r;
-                            g+=next_s->kr*c1->g;
-                            b+=next_s->kr*c1->b;
-                        } else {
-                            Color* c1 = get_color_triangle(shadowRay, next_t, my_scene, index, ttl);
-                            r+=next_t->kr*c1->r;
-                            g+=next_t->kr*c1->g;
-                            b+=next_t->kr*c1->b;
-                        }
-                    }
-                }
-
-            }
-            for(i=0;i<dlights.size();i++) {
-                Vector* ltos = new Vector(scale(light->pos, -1));
-                Color* c = s->get_my_color(intersect, dlights.at(i), ltos);
-                Vector* shadowRay = generate_shadowRay(worldIntersect, ltos);
-                Sphere* next_s = my_scene->blocked_sphere(shadowRay, s->sid);
-                Triangle* next_t = my_scene->blocked_triangle(shadowRay, s->sid);
-                if (next_s == NULL) {
-                    if (next_t == NULL) {
-                        r+=c->r;
-                        g+=c->g;
-                        b+=c->b;
-                    } else {
-                        Color* c1 = get_color(shadowRay, next_t, my_scene, index, ttl);
-                        r+=next_t->kr*c1->r;
-                        g+=next_t->kr*c1->g;
-                        b+=next_t->kr*c1->b;
-                    }
-                } else {
-                    if (next_t == NULL) {
-                        Color* c1 = get_color(shadowRay, next_s, my_scene, index, ttl);
-                        r+=next_s->kr*c1->r;
-                        g+=next_s->kr*c1->g;
-                        b+=next_s->kr*c1->b;
-                    } else {
-                        float ts = my_scene->time_to_sphere(shadowRay, next_s);
-                        float tt = my_scene->time_to_triangle(shadowRay, next_t);
-                        if (ts < tt) {
-                            Color* c1 = get_color(shadowRay, next_s, my_scene, index, ttl);
-                            r+=next_s->kr*c1->r;
-                            g+=next_s->kr*c1->g;
-                            b+=next_s->kr*c1->b;
-                        } else {
-                            Color* c1 = get_color(shadowRay, next_t, my_scene, index, ttl);
-                            r+=next_t->kr*c1->r;
-                            g+=next_t->kr*c1->g;
-                            b+=next_t->kr*c1->b;
-                        }
-                    }
-                }
-            }
-            return new Color(r, g, b);
-        }
-        return new Color(0,0,0);
-    }
+    return new Color(r,g,b);
 }
 
 
@@ -586,31 +521,17 @@ struct Sampler
                 //printf("i %d j %d\n", i, j);
                 Point* pos = new Point(i - width/2, (j - height/2)*-1, depth);
                 //printf("About to make Vector\n");
-                Ray* ray = new Ray(my_scene->eye, normalize(new Vector(pos, my_scene->eye)));
+                Ray* ray = new Ray(my_scene->eye, new Vector(pos, my_scene->eye));
                 //printf("About to Generate\n");
                 shoot_ray(ray, i + j*width);
             }
         }
     }
     void shoot_ray(Ray* ray, int index) {
-        int k;
-        for(k=0;k<my_scene->spheres.size();k++) {
-            Sphere* s = my_scene->spheres.at(k);
-            //printf("%f %f\n", s->center->z, (my_scene->ll->z));
-            if (s->center->z < -1*(my_scene->ll->z)/depth) {
-                Color* c = get_color(ray, s, my_scene, 2);
-                my_scene->rsamples[index] = c->r;
-                my_scene->gsamples[index] = c->g;
-                my_scene->bsamples[index] = c->b;
-            }
-        }
-        for(k=0;k<my_scene->triangles.size();k++) {
-            Triangle* t = my_scene->triangles.at(k);
-            //printf("%f %f\n", s->center->z, (my_scene->ll->z));
-            //if (t->avg->z < -1*(my_scene->ll->z)/depth) {
-            get_color(ray, t, my_scene, index, 2);
-            //}
-        }
+        Color* c = get_color(ray, my_scene, index, 2);
+        my_scene->rsamples[index] = c->r;
+        my_scene->gsamples[index] = c->g;
+        my_scene->bsamples[index] = c->b;
     }
 };
 
@@ -648,15 +569,16 @@ struct Film
 
 int main(int argc, char *argv[]) {
     int i = 1;
-    int w = 400;
-    int h = 400;
-    Point* ll = new Point(-1,-1,-1);
-    Point* lr = new Point(1,-1,-1);
-    Point* ul = new Point(-1,1,-1);
-    Point* ur = new Point(1,1,-1);
+    int w = 500;
+    int h = 500;
+    Point* ll = new Point(-1,-1,-3);
+    Point* lr = new Point(1,-1,-3);
+    Point* ul = new Point(-1,1,-3);
+    Point* ur = new Point(1,1,-3);
     Point* eye = new Point(0,0,0);
     //printf("Start\n");
     //printf("%d %d %d\n", argc, i, i<argc);
+    Scene* scene = new Scene(ll, lr, ul, ur, eye, w, h);
     while (i < argc) {
         if (!(strcmp(argv[i],"-eye"))) {
             eye = new Point(atof(argv[i+1]), atof(argv[i+2]), atof(argv[i+3]));
@@ -686,18 +608,30 @@ int main(int argc, char *argv[]) {
             h = atof(argv[i+1]);
             i += 2;
         }
+        // else if (!(strcmp(argv[i],"-f"))) {
+        //     h = fopen(argv[i+1], "rb");
+        //     i += 2;
+        // }
     }
-    Color* ka = new Color(0.1, 0.1, 0);
-    Scene* scene = new Scene(ll, lr, ul, ur, eye, w, h);
-    Sphere* s1 = new Sphere(0,0,-2,1, ka, new Color(1, 0, 0), new Color(.8,.8,.8), 16, new Color(.5, .5, .5), 1);
-    Sphere* s2 = new Sphere(-1,1,-2,0.25, ka, new Color(0, 1, 1), new Color(.8,.8,.8), 16, new Color(.5, .5, .5), 2);
-    //Triangle* t = new Triangle(new Point(-.5, -.5, -1.7), new Point(-.5, -1.4, -1.0), new Point(-.6, .5, 1.0), ka, new Color(0.1, 0.1, 0.8), new Color(1, 1, 1), 50, 1);
+    Color* ka = new Color(0.1, 0.1, 0.1);
+    Sphere* s1 = new Sphere(0,0,-20,3, ka, new Color(1, 0, 1), new Color(1,1,1), 50, new Color(0,0,0), 1);
+    Sphere* s2 = new Sphere(-2,2,-15,1, ka, new Color(1, 1, 0), new Color(1,1,1), 50, new Color(0,0,0), 2);
+    //Sphere* s3 = new Sphere(0,-1,-2,0.25, ka, new Color(0, 1, 0), new Color(1,1,1), 50, new Color(1,1,1), 3);
+    Sphere* s4 = new Sphere(-2,-2,-15,1, ka, new Color(0, 1, 1), new Color(1,1,1), 50, new Color(0,0,0), 4);
+    //Sphere* s5 = new Sphere(1,0,-2,0.25, ka, new Color(1, 0, 1), new Color(1,1,1), 50, new Color(1,1,1), 5);
+    Triangle* t = new Triangle(new Point(5, 5, -17), new Point(1, 4, -20), new Point(-6, -1, -20), ka, new Color(0.1, 0.1, 0.8), new Color(1, 1, 1), 50, new Color(1,1,1), 3);
     scene->add_sphere(s2);
     scene->add_sphere(s1);
-    //scene->add_tri(t);
+    //scene->add_sphere(s3);
+    scene->add_sphere(s4);
+    //scene->add_sphere(s5);
+    scene->add_tri(t);
     //printf("lights\n");
-    plights.push_back(new Light(new Point(-2, 2, 2), new Color(.6, .6, .6)));
-    //dlights.push_back(new Light(new Point(10, 10, 10), new Color(1, 1, 1)));
+    //plights.push_back(new Light(new Point(-2, 2, 2), new Color(1, 1, 1)));
+    //plights.push_back(new Light(new Point(-2, -2, 2), new Color(.6, .6, .6)));
+    //plights.push_back(new Light(new Point(-2, 2, 2), new Color(.6, .6, .6)));
+    dlights.push_back(new Light(new Point(2, -2, -2), new Color(1, 1, 1)));
+    dlights.push_back(new Light(new Point(2, 2, -2), new Color(0, 0, 1)));
     //printf("sampler\n");
     Sampler* sampler = new Sampler(scene);
     Film* my_film = new Film(sampler);
